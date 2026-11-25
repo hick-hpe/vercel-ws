@@ -1,0 +1,12 @@
+services:
+  web:
+    build: .
+    container_name: vercel-ws-teste
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+    # Sincroniza os arquivos locais para você editar o código sem precisar refazer o build
+    volumes:
+      - ./server.js:/app/server.js
+      - ./index.html:/app/index.html

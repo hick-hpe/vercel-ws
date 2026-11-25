@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Teste WebSocket + Docker na Vercel</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            max-width: 500px;
+            margin: 40px auto;
+        }
+
+        #log {
+            border: 1px solid #ccc;
+            height: 200px;
+            overflow-y: auto;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <h2>Teste WebSocket + Docker</h2>
+    <div id="log"></div>
+    <input id="msg" type="text" placeholder="Digite algo..." />
+    <button onclick="enviar()">Enviar</button>
+
+    <script>
+        const log = document.getElementById('log');
+        const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const ws = new WebSocket(`${protocol}//${location.host}`);
+
+        const addLog = (txt) => {
+            log.innerHTML += `<div>${txt}</div>`;
+            log.scrollTop = log.scrollHeight;
+        };
+
+        ws.onmessage = (e) => addLog(e.data);
+        ws.onclose = () => addLog('Conexão encerrada.');
+
+        function enviar() {
+            const input = document.getElementById('msg');
+            if (input.value) {
+                ws.send(input.value);
+                input.value = '';
+            }
+        }
+    </script>
+</body>
+
+</html>
