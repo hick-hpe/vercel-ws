@@ -1,37 +1,47 @@
-import http from 'http';
-import fs from 'fs';
-import { WebSocketServer } from 'ws';
+import { createServer } from 'node:http';
+import express from 'express';
+import { Server } from 'socket.io';
 
-// A Vercel injeta a variável PORT automaticamente (padrão 80 nos containers)
-const port = process.env.PORT || 8080;
+const app = express();
+const server = createServer(app);
 
-const server = http.createServer((req, res) => {
-    if (req.url === '/') {
-        const html = fs.readFileSync('./index.html');
-        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-        res.end(html);
-    } else {
-        res.writeHead(404);
-        res.end('Not Found');
-    }
+// Força WebSocket puro para evitar problemas de sticky-session do HTTP polling na Vercel
+const io = new Server(server, {
+  transports: ['websocket']
 });
 
-const wss = new WebSocketServer({ server });
+app.use(express.json());
+app.use(express.static('public'));
 
-wss.on('connection', (ws) => {
-    ws.send('Conectado ao container na Vercel!');
+app.get('/api/status', (req, res) => {
+  res.json({
+    status: 'online',
+    clientesConectados: io.engine.clientsCount,
+    timestamp: new Date().toISOString()
+  });
+});
 
-    ws.on('message', (data) => {
-        const texto = data.toString();
-        // Devolve a mensagem para todos os clientes conectados nesta instância
-        wss.clients.forEach((client) => {
-            if (client.readyState === 1) {
-                client.send(`Eco do servidor: ${texto}`);
-            }
-        });
+io.on('connection', (socket) => {
+  const userId = `User-${socket.id.slice(0, 4)}`;
+
+  // Avisa apenas quem acabou de entrar
+  socket.emit('system', `Conectado como ${userId}`);
+
+  // Escuta evento customizado 'chat-message'
+  socket.on('chat-message', (text) => {
+    io.emit('chat-message', {
+      sender: userId,
+      text,
+      time: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
     });
+  });
 });
 
-server.listen(port, '0.0.0.0', () => {
-    console.log(`Servidor rodando na porta ${port}`);
-});
+if (!process.env.VERCEL) {
+  const port = process.env.PORT || 3000;
+  server.listen(port, () => {
+    console.log(`Servidor rodando em http://localhost:${port}`);
+  });
+}
+
+export default server;
